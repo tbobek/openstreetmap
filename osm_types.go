@@ -10,8 +10,14 @@ type GeoPoint struct {
 
 type Osm struct {
 	XMLName xml.Name `xml:"osm"`
+	Note    string   `xml:"note"`
+	Meta    MetaType `xml:"meta"`
 	Nodes   []Node   `xml:"node"`
 	Ways    []Way    `xml:"way"`
+}
+
+type MetaType struct {
+	OsmBase string `xml:"osm_base,attr"`
 }
 
 type Way struct {

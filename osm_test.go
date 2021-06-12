@@ -9,7 +9,6 @@ import (
 )
 
 func TestGetNodes(t *testing.T) {
-	fmt.Println("vim-go")
 	corner1 := GeoPoint{Lat: 50.84, Lon: 6.085}
 	corner2 := GeoPoint{Lat: 50.87, Lon: 6.095}
 	body := makeRequest(corner1, corner2)
@@ -18,6 +17,26 @@ func TestGetNodes(t *testing.T) {
 		t.Errorf("no nodes returned")
 	}
 	// insert nods in influxdb
+}
+
+func TestGetOverpassNodes(t *testing.T) {
+	corner1 := GeoPoint{Lat: 50.84, Lon: 6.07}
+	corner2 := GeoPoint{Lat: 50.87, Lon: 6.09}
+	body := makeOverpassRequest(corner1, corner2)
+	ioutil.WriteFile("response.xml", body, 0777)
+	if len(body) < 1 {
+		t.Errorf("no nodes returned")
+	}
+}
+
+func TestGetOverpassNodes2(t *testing.T) {
+	corner1 := GeoPoint{Lat: 50.79147736514272, Lon: 6.05222225189209}
+	corner2 := GeoPoint{Lat: 50.81550721541137, Lon: 6.097497940063477}
+	body := makeOverpassRequest(corner1, corner2)
+	ioutil.WriteFile("response.xml", body, 0777)
+	if len(body) < 1 {
+		t.Errorf("no nodes returned")
+	}
 }
 
 func TestParseXml(t *testing.T) {

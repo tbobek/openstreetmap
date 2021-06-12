@@ -39,7 +39,7 @@ func GetNodes(p1 GeoPoint, p2 GeoPoint) []GeoPoint {
 func makeRequest(p1 GeoPoint, p2 GeoPoint) []byte {
 	// api call is like /api/0.6/map?bbox=left, bottom, right, top
 	url := "http://api.openstreetmap.org/api/0.6/map?bbox="
-	request := fmt.Sprintf("%s%f,%f,%f,%f", url, p1.Lon, p1.Lat, p2.Lon, p2.Lat)
+	request := fmt.Sprintf("%s%f,%f,%f,%f,%s", url, p1.Lon, p1.Lat, p2.Lon, p2.Lat, "highway=primary")
 	log.Printf("making request: %s", request)
 	resp, err := http.Get(request)
 	if err != nil {
@@ -52,6 +52,21 @@ func makeRequest(p1 GeoPoint, p2 GeoPoint) []byte {
 	}
 	log.Printf("response (first 200 chars, total length: %d):\n%s", len(body), body[0:200])
 	return body
+}
+
+func makeOverpassRequest(p1 GeoPoint, p2 GeoPoint) []byte {
+	url := "http://overpass-api.de/api/interpreter"
+	data := fmt.Sprintf(`[out:xml][timeout:25];(way["highway"](%f,%f,%f,%f););out body;>;out skel qt;`, p1.Lat, p1.Lon, p2.Lat, p2.Lon)
+	body := strings.NewReader(string(data))
+	log.Printf("making overpass request: \nurl=%s\ndata=%s", url, data)
+	res, err := http.Post(url, "application/string", body)
+	if err != nil {
+		panic(err)
+	}
+	respData, _ := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+
+	return respData
 }
 
 func extractPoints(nodes []Node) []GeoPoint {
