@@ -6,42 +6,22 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 )
 
-type GeoPoint struct {
-	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
+type OsmConfig struct {
+	InfluxHost string
+	InfluxDb   string
 }
 
-type Osm struct {
-	XMLName xml.Name `xml:"osm"`
-	Nodes   []Node   `xml:"node"`
-	Way     []Way    `xml:"way"`
-}
-
-type Way struct {
-	XMLName xml.Name `xml:"way"`
-	Nds     []Nd     `xml:"nd"`
-	Tags    []Tag    `xml:"tag"`
-}
-
-type Tag struct {
-	XMLName xml.Name `xml:"tag"`
-	Key     string   `xml:"k"`
-	Value   string   `xml:"v"`
-}
-
-type Nd struct {
-	XMLName xml.Name `xml:"nd"`
-	Ref     string   `xml:"ref,attr"`
-}
-
-type Node struct {
-	XMLName xml.Name `xml:"node"`
-	Id      string   `xml:"id,attr"`
-	Lat     string   `xml:"lat,attr"`
-	Lon     string   `xml:"lon,attr"`
+func GetOsmConfig() OsmConfig {
+	osmConf := OsmConfig{
+		InfluxHost: os.Getenv("OSM_INFLUX_HOST"),
+		InfluxDb:   os.Getenv("OSM_INFLUX_DB"),
+	}
+	return osmConf
 }
 
 // getNodes retrieves street locations from openstreetmap
@@ -49,8 +29,10 @@ type Node struct {
 // p2 is the upper right point on the map
 func GetNodes(p1 GeoPoint, p2 GeoPoint) []GeoPoint {
 	body := makeRequest(p1, p2)
-	_, nodes := parseOsm(body)
-
+	_, nodes, err := parseOsm(body)
+	if err != nil {
+		return nil
+	}
 	return extractPoints(nodes)
 }
 
@@ -83,15 +65,40 @@ func extractPoints(nodes []Node) []GeoPoint {
 		if err != nil {
 			log.Panic(err)
 		}
-		points = append(points, GeoPoint{lat, lon})
+		points = append(points, GeoPoint{lat, lon, "street"})
 	}
 	return points
 }
 
-func parseOsm(input []byte) ([]Way, []Node) {
-	var way Way
-	nodes := make([]Node, 0)
-	ways := make([]Way, 0)
-	xml.Unmarshal(input, &way)
-	return ways, nodes
+func parseOsm(input []byte) ([]Way, []Node, error) {
+	var osm Osm
+
+	err := xml.Unmarshal(input, &osm)
+	if err != nil {
+		return nil, nil, err
+	}
+	return osm.Ways, osm.Nodes, nil
+}
+
+func insertPoints(points []GeoPoint) int {
+	osmConf := GetOsmConfig()
+	// url
+	url := fmt.Sprintf("http://%s:8086/write?db=%s", osmConf.InfluxHost, osmConf.InfluxDb)
+	counter := 0
+	for _, p := range points {
+
+		pj := fmt.Sprintf("street_points,value=%d,name=test lat=%f,lon=%f", 1, p.Lat, p.Lon)
+		//log.Printf("influx POST request: %s, body: %s", url, string(pj))
+		body := strings.NewReader(string(pj))
+		res, err := http.Post(url, "application/string", body)
+
+		if err != nil {
+			panic(err)
+		}
+		//data, _ := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		//log.Printf("response from influx POST insert: %s", data)
+		counter += 1
+	}
+	return counter
 }
