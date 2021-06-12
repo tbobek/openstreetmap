@@ -2,7 +2,11 @@
 
 ## Introduction 
 
-Routines to extract points from OpenStreetMap
+Routines to extract points on streets from OpenStreetMap
+
+## TODO 
+
+- extract tags to filter road types
 
 ## Learnings
 
